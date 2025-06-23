@@ -8,7 +8,7 @@ Lists support entries with variable size from 0 to 65_535 bytes.
 
 Lists **do not** support modifications of already added items and item deletion.
 
-To use a list, client code must first allocate it using `allocateList`.
+To use a list, client code must first create it using `createList`.
 Each list is identified by a unique index — a consecutive natural number starting from 0.
 
 ### Links
@@ -31,22 +31,22 @@ Can be used for logs, events history etc.
 ### Interface
 
 ```motoko
-stable let log : StableLogLists.StableLogLists = StableLogLists.new();
+stable let log : LogLists.LogLists = LogLists.new();
 ```
 
 ## Usage
 
 ```motoko
-let log : StableLogLists.StableLogLists = StableLogLists.new();
+let log : LogLists.LogLists = LogLists.new();
 
-let logList0 = StableLogLists.allocateList(log);
-let logList1 = StableLogLists.allocateList(log);
+let logList0 = LogLists.createList(log);
+let logList1 = LogLists.createList(log);
 
 let dataBlob : Blob = "";
-StableLogLists.append(log, logList0, dataBlob);
+LogLists.append(log, logList0, dataBlob);
 
-StableLogLists.values(log, logList0) |> Iter.toArray(_); // produces 1 item, dataBlob
-StableLogLists.values(log, logList1) |> Iter.toArray(_); // produces empty array
+LogLists.values(log, logList0) |> Iter.toArray(_); // produces 1 item, dataBlob
+LogLists.values(log, logList1) |> Iter.toArray(_); // produces empty array
 ```
 
 ### Install with mops
@@ -58,7 +58,7 @@ mops add stable-log-lists
 
 In the Motoko source file import the package as:
 ```
-import StableLogLists "mo:stable-log-lists";
+import LogLists "mo:stable-log-lists";
 ```
 
 ### Example
@@ -109,7 +109,7 @@ Each item is stored as a record with the following structure:
 
 ## Copyright
 
-MR Research AG, 2023-2025
+MR Research AG, 2025
 
 ## Authors
 

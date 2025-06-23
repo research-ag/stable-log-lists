@@ -6,7 +6,7 @@ import Nat "mo:base/Nat";
 import Prim "mo:prim";
 import Text "mo:base/Text";
 
-import StableLogLists "../src";
+import LogLists "../src";
 
 // Helper function to convert Text to Blob
 func textToBlob(t : Text) : Blob {
@@ -20,12 +20,12 @@ func blobToText(b : ?Blob) : Text {
   t;
 };
 
-// ================== StableLogLists tests ==================
+// ================== LogLists tests ==================
 
-// Test creating a new StableLogLists instance
+// Test creating a new LogLists instance
 do {
-  Prim.debugPrint("StableLogLists :: should create a new instance");
-  let lists = StableLogLists.new();
+  Prim.debugPrint("LogLists :: should create a new instance");
+  let lists = LogLists.new();
   assert lists.listsAmount == 0;
   assert lists.totalRecords == 0;
   assert lists.dataLength == 1; // Initial data length is 1 (reserved byte)
@@ -33,46 +33,46 @@ do {
 
 // Test allocating a list
 do {
-  Prim.debugPrint("StableLogLists :: should allocate a new list");
-  let lists = StableLogLists.new();
-  let listIndex = StableLogLists.allocateList(lists);
+  Prim.debugPrint("LogLists :: should create a new list");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
   assert listIndex == 0;
   assert lists.listsAmount == 1;
-  assert StableLogLists.size(lists, listIndex) == 0;
+  assert LogLists.size(lists, listIndex) == 0;
 };
 
 // Test appending data to a list
 do {
-  Prim.debugPrint("StableLogLists :: should append data to a list");
-  let lists = StableLogLists.new();
-  let listIndex = StableLogLists.allocateList(lists);
+  Prim.debugPrint("LogLists :: should append data to a list");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
 
   let data1 = textToBlob("test data 1");
-  StableLogLists.append(lists, listIndex, data1);
-  assert StableLogLists.size(lists, listIndex) == 1;
+  LogLists.append(lists, listIndex, data1);
+  assert LogLists.size(lists, listIndex) == 1;
   assert lists.totalRecords == 1;
 
   let data2 = textToBlob("test data 2");
-  StableLogLists.append(lists, listIndex, data2);
-  assert StableLogLists.size(lists, listIndex) == 2;
+  LogLists.append(lists, listIndex, data2);
+  assert LogLists.size(lists, listIndex) == 2;
   assert lists.totalRecords == 2;
 };
 
 // Test retrieving values from a list
 do {
-  Prim.debugPrint("StableLogLists :: should retrieve values from a list in order");
-  let lists = StableLogLists.new();
-  let listIndex = StableLogLists.allocateList(lists);
+  Prim.debugPrint("LogLists :: should retrieve values from a list in order");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
 
   let data1 = textToBlob("test data 1");
   let data2 = textToBlob("test data 2");
   let data3 = textToBlob("test data 3");
 
-  StableLogLists.append(lists, listIndex, data1);
-  StableLogLists.append(lists, listIndex, data2);
-  StableLogLists.append(lists, listIndex, data3);
+  LogLists.append(lists, listIndex, data1);
+  LogLists.append(lists, listIndex, data2);
+  LogLists.append(lists, listIndex, data3);
 
-  let values = StableLogLists.values(lists, listIndex);
+  let values = LogLists.values(lists, listIndex);
   assert values.next() == ?data1;
   assert values.next() == ?data2;
   assert values.next() == ?data3;
@@ -81,19 +81,19 @@ do {
 
 // Test retrieving values in reverse order
 do {
-  Prim.debugPrint("StableLogLists :: should retrieve values from a list in reverse order");
-  let lists = StableLogLists.new();
-  let listIndex = StableLogLists.allocateList(lists);
+  Prim.debugPrint("LogLists :: should retrieve values from a list in reverse order");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
 
   let data1 = textToBlob("test data 1");
   let data2 = textToBlob("test data 2");
   let data3 = textToBlob("test data 3");
 
-  StableLogLists.append(lists, listIndex, data1);
-  StableLogLists.append(lists, listIndex, data2);
-  StableLogLists.append(lists, listIndex, data3);
+  LogLists.append(lists, listIndex, data1);
+  LogLists.append(lists, listIndex, data2);
+  LogLists.append(lists, listIndex, data3);
 
-  let valuesRev = StableLogLists.valuesRev(lists, listIndex);
+  let valuesRev = LogLists.valuesRev(lists, listIndex);
   assert valuesRev.next() == ?data3;
   assert valuesRev.next() == ?data2;
   assert valuesRev.next() == ?data1;
@@ -102,11 +102,11 @@ do {
 
 // Test multiple lists
 do {
-  Prim.debugPrint("StableLogLists :: should handle multiple lists");
-  let lists = StableLogLists.new();
+  Prim.debugPrint("LogLists :: should handle multiple lists");
+  let lists = LogLists.new();
 
-  let listIndex1 = StableLogLists.allocateList(lists);
-  let listIndex2 = StableLogLists.allocateList(lists);
+  let listIndex1 = LogLists.createList(lists);
+  let listIndex2 = LogLists.createList(lists);
 
   assert listIndex1 == 0;
   assert listIndex2 == 1;
@@ -114,15 +114,15 @@ do {
   let data1 = textToBlob("list 1 data");
   let data2 = textToBlob("list 2 data");
 
-  StableLogLists.append(lists, listIndex1, data1);
-  StableLogLists.append(lists, listIndex2, data2);
+  LogLists.append(lists, listIndex1, data1);
+  LogLists.append(lists, listIndex2, data2);
 
-  assert StableLogLists.size(lists, listIndex1) == 1;
-  assert StableLogLists.size(lists, listIndex2) == 1;
+  assert LogLists.size(lists, listIndex1) == 1;
+  assert LogLists.size(lists, listIndex2) == 1;
   assert lists.totalRecords == 2;
 
-  let values1 = StableLogLists.values(lists, listIndex1);
-  let values2 = StableLogLists.values(lists, listIndex2);
+  let values1 = LogLists.values(lists, listIndex1);
+  let values2 = LogLists.values(lists, listIndex2);
 
   assert values1.next() == ?data1;
   assert values1.next() == null;
@@ -133,30 +133,30 @@ do {
 
 // Test totalSize function
 do {
-  Prim.debugPrint("StableLogLists :: should report correct totalSize");
-  let lists = StableLogLists.new();
+  Prim.debugPrint("LogLists :: should report correct totalSize");
+  let lists = LogLists.new();
 
-  assert StableLogLists.totalSize(lists) == 0;
+  assert LogLists.totalSize(lists) == 0;
 
-  let listIndex1 = StableLogLists.allocateList(lists);
-  let listIndex2 = StableLogLists.allocateList(lists);
+  let listIndex1 = LogLists.createList(lists);
+  let listIndex2 = LogLists.createList(lists);
 
-  StableLogLists.append(lists, listIndex1, textToBlob("data 1"));
-  StableLogLists.append(lists, listIndex1, textToBlob("data 2"));
-  StableLogLists.append(lists, listIndex2, textToBlob("data 3"));
+  LogLists.append(lists, listIndex1, textToBlob("data 1"));
+  LogLists.append(lists, listIndex1, textToBlob("data 2"));
+  LogLists.append(lists, listIndex2, textToBlob("data 3"));
 
-  assert StableLogLists.totalSize(lists) == 3;
+  assert LogLists.totalSize(lists) == 3;
 };
 
 // Test memory statistics
 do {
-  Prim.debugPrint("StableLogLists :: should report memory statistics");
-  let lists = StableLogLists.new();
+  Prim.debugPrint("LogLists :: should report memory statistics");
+  let lists = LogLists.new();
 
-  let listIndex = StableLogLists.allocateList(lists);
-  StableLogLists.append(lists, listIndex, textToBlob("test data"));
+  let listIndex = LogLists.createList(lists);
+  LogLists.append(lists, listIndex, textToBlob("test data"));
 
-  let stats = StableLogLists.memoryStats(lists);
+  let stats = LogLists.memoryStats(lists);
 
   assert stats.totalRecords == 1;
   assert stats.bytesUsed > 0;
@@ -166,21 +166,21 @@ do {
 
 // Test with larger data sets
 do {
-  Prim.debugPrint("StableLogLists :: should handle larger data sets");
-  let lists = StableLogLists.new();
-  let listIndex = StableLogLists.allocateList(lists);
+  Prim.debugPrint("LogLists :: should handle larger data sets");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
 
   // Add 100 items
   for (i in Iter.range(0, 99)) {
     let data = textToBlob("data item #" # Nat.toText(i));
-    StableLogLists.append(lists, listIndex, data);
+    LogLists.append(lists, listIndex, data);
   };
 
-  assert StableLogLists.size(lists, listIndex) == 100;
+  assert LogLists.size(lists, listIndex) == 100;
   assert lists.totalRecords == 100;
 
   // Verify first and last items
-  let values = StableLogLists.values(lists, listIndex);
+  let values = LogLists.values(lists, listIndex);
   assert blobToText(values.next()) == "data item #0";
 
   // Skip to the end

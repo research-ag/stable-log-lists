@@ -1,7 +1,7 @@
 /// This module implements an array of linked lists, fully stored in memory regions.
 /// All data is managed using two growable regions: `indexTable` and `data`.
 
-/// To use a list, client code must first allocate it using `allocateList`.
+/// To use a list, client code must first create it using `createList`.
 /// Each list is identified by a unique index — a consecutive natural number starting from 0.
 
 /// --- INDEX TABLE REGION ---
@@ -40,7 +40,7 @@ import Region "mo:base/Region";
 
 module {
 
-  public type StableLogLists = {
+  public type LogLists = {
     indexTable : Region;
     data : Region;
     var dataLength : Nat;
@@ -50,7 +50,7 @@ module {
 
   type Record = { prevPtr : Nat64; nextPtr : Nat64; data : Blob };
 
-  public func new() : StableLogLists = {
+  public func new() : LogLists = {
     indexTable = Region.new();
     data = Region.new();
     var dataLength = 1;
@@ -58,22 +58,24 @@ module {
     var totalRecords = 0;
   };
 
-  public func size(l : StableLogLists, listIndex : Nat) : Nat = loadListLength_(l, listIndex) |> Nat64.toNat(_);
+  public func size(l : LogLists, listIndex : Nat) : Nat = loadListLength_(l, listIndex) |> Nat64.toNat(_);
 
-  public func totalSize(l : StableLogLists) : Nat = l.totalRecords;
+  public func totalSize(l : LogLists) : Nat = l.totalRecords;
 
-  public func allocateList(l : StableLogLists) : Nat {
+  public func createList(l : LogLists) : Nat {
     let newlistIndex = l.listsAmount;
-    if (65536 * Region.size(l.indexTable) < (Nat64.fromNat(newlistIndex) + 1) * 24 and Region.grow(l.indexTable, 1) == 0xFFFF_FFFF_FFFF_FFFF) {
-      Prim.trap("Out of memory");
+    if (65536 * Region.size(l.indexTable) < (Nat64.fromNat(newlistIndex) + 1) * 24) {
+      if (Region.grow(l.indexTable, 1) == 0xFFFF_FFFF_FFFF_FFFF) {
+        Prim.trap("Out of memory");
+      };
     };
     l.listsAmount += 1;
     newlistIndex;
   };
 
-  public func append(l : StableLogLists, listIndex : Nat, data : Blob) {
+  public func append(l : LogLists, listIndex : Nat, data : Blob) {
     if (listIndex >= l.listsAmount) {
-      Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not allocated");
+      Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
     let lastItemPtr = loadLastRecordPtr_(l, listIndex);
     let newItemPtr = appendRecord_(l, { nextPtr = 0; prevPtr = lastItemPtr; data });
@@ -87,9 +89,9 @@ module {
     l.totalRecords += 1;
   };
 
-  public func values(l : StableLogLists, listIndex : Nat) : Iter.Iter<Blob> {
+  public func values(l : LogLists, listIndex : Nat) : Iter.Iter<Blob> {
     if (listIndex >= l.listsAmount) {
-      Prim.trap("Cannot retrieve values of list #" # debug_show listIndex # ". List was not allocated");
+      Prim.trap("Cannot retrieve values of list #" # debug_show listIndex # ". List was not created");
     };
     var ptr = loadFirstRecordPtr_(l, listIndex);
     {
@@ -102,9 +104,9 @@ module {
     };
   };
 
-  public func valuesRev(l : StableLogLists, listIndex : Nat) : Iter.Iter<Blob> {
+  public func valuesRev(l : LogLists, listIndex : Nat) : Iter.Iter<Blob> {
     if (listIndex >= l.listsAmount) {
-      Prim.trap("Cannot retrieve valuesRev of list #" # debug_show listIndex # ". List was not allocated");
+      Prim.trap("Cannot retrieve valuesRev of list #" # debug_show listIndex # ". List was not created");
     };
     var ptr = loadLastRecordPtr_(l, listIndex);
     {
@@ -117,7 +119,7 @@ module {
     };
   };
 
-  public func memoryStats(l : StableLogLists) : {
+  public func memoryStats(l : LogLists) : {
     pages : { indexTable : Nat; data : Nat };
     bytesUsed : Nat;
     totalRecords : Nat;
@@ -131,16 +133,16 @@ module {
   };
 
   // ======================== INTERNAL PRIVATE FUNCTIONALITY ========================
-  private func loadListLength_(l : StableLogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8);
-  private func storeListLength_(l : StableLogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8, v);
+  private func loadListLength_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8);
+  private func storeListLength_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8, v);
 
-  private func loadFirstRecordPtr_(l : StableLogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8);
-  private func storeFirstRecordPtr_(l : StableLogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8, v);
+  private func loadFirstRecordPtr_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8);
+  private func storeFirstRecordPtr_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8, v);
 
-  private func loadLastRecordPtr_(l : StableLogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 2) * 8);
-  private func storeLastRecordPtr_(l : StableLogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 2) * 8, v);
+  private func loadLastRecordPtr_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 2) * 8);
+  private func storeLastRecordPtr_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 2) * 8, v);
 
-  private func loadRecord_(l : StableLogLists, pointer : Nat64) : Record {
+  private func loadRecord_(l : LogLists, pointer : Nat64) : Record {
     let prevPtr = Region.loadNat64(l.data, pointer);
     let nextPtr = Region.loadNat64(l.data, pointer + 8);
     let size = Region.loadNat16(l.data, pointer + 16);
@@ -148,11 +150,14 @@ module {
     { data; prevPtr; nextPtr };
   };
 
-  private func appendRecord_(l : StableLogLists, record : Record) : Nat64 {
+  private func appendRecord_(l : LogLists, record : Record) : Nat64 {
     let recordSize = record.data.size() + 18;
     let pointer = Nat64.fromNat(l.dataLength);
-    if (65536 * Region.size(l.data) < (Nat64.fromNat(recordSize) + pointer) and Region.grow(l.data, 2) == 0xFFFF_FFFF_FFFF_FFFF) {
-      Prim.trap("Out of memory");
+    while (65536 * Region.size(l.data) < Nat64.fromNat(recordSize) + pointer) {
+      let oldSize = Region.grow(l.data, 1);
+      if (oldSize == 0xFFFF_FFFF_FFFF_FFFF) {
+        Prim.trap("Out of memory");
+      };
     };
     Region.storeNat64(l.data, pointer, record.prevPtr);
     Region.storeNat64(l.data, pointer + 8, record.nextPtr);
@@ -162,7 +167,7 @@ module {
     pointer;
   };
 
-  private func storeNextPtr_(l : StableLogLists, recordPointer : Nat64, nextPtr : Nat64) = Region.storeNat64(l.data, recordPointer + 8, nextPtr);
+  private func storeNextPtr_(l : LogLists, recordPointer : Nat64, nextPtr : Nat64) = Region.storeNat64(l.data, recordPointer + 8, nextPtr);
   // ======================== INTERNAL PRIVATE FUNCTIONALITY ========================
 
 };
