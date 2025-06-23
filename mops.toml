@@ -1,18 +1,16 @@
 [package]
-name = ""
+name = "stable-log-lists"
 version = "0.0.1"
-description = ""
-repository = "https://github.com/research-ag/..."
+description = "Linked lists in regions"
+repository = "https://github.com/research-ag/stable-log-lists"
 keywords = [ ]
 license = "Apache-2.0"
 
 [dependencies]
-base = "0.11.1"
+base = "0.14.13"
 
 [dev-dependencies]
 test = "2.0.0"
-bench = "1.0.0"
 
 [toolchain]
-moc = "0.11.1"
-pocket-ic = "1.0.0"
+moc = "0.14.13"
