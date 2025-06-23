@@ -58,7 +58,7 @@ module {
     var totalRecords = 0;
   };
 
-  public func size(l : LogLists, listIndex : Nat) : Nat = loadListLength_(l, listIndex) |> Nat64.toNat(_);
+  public func size(l : LogLists, listIndex : Nat) : Nat = loadListLength_(l, listIndex);
 
   public func totalSize(l : LogLists) : Nat = l.totalRecords;
 
@@ -85,7 +85,7 @@ module {
       storeFirstRecordPtr_(l, listIndex, newItemPtr);
     };
     storeLastRecordPtr_(l, listIndex, newItemPtr);
-    storeListLength_(l, listIndex, loadListLength_(l, listIndex) + 1);
+    incListLength_(l, listIndex);
     l.totalRecords += 1;
   };
 
@@ -101,7 +101,7 @@ module {
       storeLastRecordPtr_(l, listIndex, newItemPtr);
     };
     storeFirstRecordPtr_(l, listIndex, newItemPtr);
-    storeListLength_(l, listIndex, loadListLength_(l, listIndex) + 1);
+    incListLength_(l, listIndex);
     l.totalRecords += 1;
   };
 
@@ -149,8 +149,14 @@ module {
   };
 
   // ======================== INTERNAL PRIVATE FUNCTIONALITY ========================
-  private func loadListLength_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8);
-  private func storeListLength_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8, v);
+  func indexOffset(listIndex : Nat) : Nat64 = Nat64.fromNat(3 * 8 * listIndex);
+
+  private func loadListLength_(l : LogLists, listIndex : Nat) : Nat = Nat64.toNat(Region.loadNat64(l.indexTable, indexOffset(listIndex)));
+  private func incListLength_(l : LogLists, listIndex : Nat) {
+    let t = l.indexTable;
+    let offset = indexOffset(listIndex);
+    Region.storeNat64(t, offset, Region.loadNat64(t, offset) + 1);
+  };
 
   private func loadFirstRecordPtr_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8);
   private func storeFirstRecordPtr_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8, v);
