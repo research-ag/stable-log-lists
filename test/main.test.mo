@@ -100,6 +100,69 @@ do {
   assert valuesRev.next() == null;
 };
 
+// Test prepending data to a list
+do {
+  Prim.debugPrint("LogLists :: should prepend data to a list");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
+
+  let data1 = textToBlob("test data 1");
+  LogLists.append(lists, listIndex, data1);
+  assert LogLists.size(lists, listIndex) == 1;
+  assert lists.totalRecords == 1;
+
+  let data2 = textToBlob("test data 2");
+  LogLists.append(lists, listIndex, data2);
+  assert LogLists.size(lists, listIndex) == 2;
+  assert lists.totalRecords == 2;
+
+  let data3 = textToBlob("test data 3");
+  LogLists.prepend(lists, listIndex, data3);
+  assert LogLists.size(lists, listIndex) == 3;
+  assert lists.totalRecords == 3;
+
+  let values = LogLists.values(lists, listIndex);
+  assert values.next() == ?data3;
+  assert values.next() == ?data1;
+  assert values.next() == ?data2;
+  assert values.next() == null;
+};
+
+// Test single-item lists
+do {
+  Prim.debugPrint("LogLists :: append should initialize list");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
+
+  let data1 = textToBlob("test data");
+  LogLists.append(lists, listIndex, data1);
+
+  let values = LogLists.values(lists, listIndex);
+  assert values.next() == ?data1;
+  assert values.next() == null;
+
+  let valuesRev = LogLists.values(lists, listIndex);
+  assert valuesRev.next() == ?data1;
+  assert valuesRev.next() == null;
+};
+
+do {
+  Prim.debugPrint("LogLists :: prepend should initialize list");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
+
+  let data1 = textToBlob("test data");
+  LogLists.prepend(lists, listIndex, data1);
+
+  let values = LogLists.values(lists, listIndex);
+  assert values.next() == ?data1;
+  assert values.next() == null;
+
+  let valuesRev = LogLists.values(lists, listIndex);
+  assert valuesRev.next() == ?data1;
+  assert valuesRev.next() == null;
+};
+
 // Test multiple lists
 do {
   Prim.debugPrint("LogLists :: should handle multiple lists");

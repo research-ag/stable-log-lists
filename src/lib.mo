@@ -89,6 +89,22 @@ module {
     l.totalRecords += 1;
   };
 
+  public func prepend(l : LogLists, listIndex : Nat, data : Blob) {
+    if (listIndex >= l.listsAmount) {
+      Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
+    };
+    let firstItemPtr = loadFirstRecordPtr_(l, listIndex);
+    let newItemPtr = appendRecord_(l, { nextPtr = firstItemPtr; prevPtr = 0; data });
+    if (firstItemPtr > 0) {
+      storePrevPtr_(l, firstItemPtr, newItemPtr);
+    } else {
+      storeLastRecordPtr_(l, listIndex, newItemPtr);
+    };
+    storeFirstRecordPtr_(l, listIndex, newItemPtr);
+    storeListLength_(l, listIndex, loadListLength_(l, listIndex) + 1);
+    l.totalRecords += 1;
+  };
+
   public func values(l : LogLists, listIndex : Nat) : Iter.Iter<Blob> {
     if (listIndex >= l.listsAmount) {
       Prim.trap("Cannot retrieve values of list #" # debug_show listIndex # ". List was not created");
@@ -167,6 +183,7 @@ module {
     pointer;
   };
 
+  private func storePrevPtr_(l : LogLists, recordPointer : Nat64, prevPtr : Nat64) = Region.storeNat64(l.data, recordPointer, prevPtr);
   private func storeNextPtr_(l : LogLists, recordPointer : Nat64, nextPtr : Nat64) = Region.storeNat64(l.data, recordPointer + 8, nextPtr);
   // ======================== INTERNAL PRIVATE FUNCTIONALITY ========================
 
