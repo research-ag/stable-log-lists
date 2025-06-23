@@ -1,3 +1,5 @@
+// @testmode wasi
+
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
@@ -13,7 +15,7 @@ func textToBlob(t : Text) : Blob {
 
 // Helper function to convert Blob to Text
 func blobToText(b : ?Blob) : Text {
-  let ?d = b else Prim.trap("EMpty blob received");
+  let ?d = b else Prim.trap("Empty blob received");
   let ?t = Text.decodeUtf8(d) else Prim.trap("Could not decode text");
   t;
 };
@@ -160,23 +162,6 @@ do {
   assert stats.bytesUsed > 0;
   assert stats.pages.indexTable > 0;
   assert stats.pages.data > 0;
-};
-
-// Test error handling for non-allocated list
-do {
-  Prim.debugPrint("StableLogLists :: should trap when accessing non-allocated list");
-  let lists = StableLogLists.new();
-
-  let listIndex = StableLogLists.allocateList(lists);
-
-  // This should work
-  StableLogLists.append(lists, listIndex, textToBlob("test data"));
-
-  // These should trap, but we can't easily test trapping in Motoko
-  // Uncomment to manually verify trapping behavior
-  // StableLogLists.append(lists, listIndex + 1, textToBlob("should trap"));
-  // let _ = StableLogLists.values(lists, listIndex + 1);
-  // let _ = StableLogLists.valuesRev(lists, listIndex + 1);
 };
 
 // Test with larger data sets
