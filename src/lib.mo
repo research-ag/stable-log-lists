@@ -27,7 +27,7 @@
 /// | 16     | Nat16 | Size of the data blob                                |
 /// | 18     | Blob  | Actual item data                                     |
 ///
-/// Copyright: 2023-2025 MR Research AG
+/// Copyright: 2025 MR Research AG
 /// Main author: Andy Gura
 /// Contributors: Timo Hanke
 
@@ -58,34 +58,49 @@ module {
     var totalRecords = 0;
   };
 
-  public func size(l : LogLists, listIndex : Nat) : Nat = loadListLength_(l, listIndex) |> Nat64.toNat(_);
+  public func size(l : LogLists, listIndex : Nat) : Nat = List(l, listIndex).length();
 
   public func totalSize(l : LogLists) : Nat = l.totalRecords;
 
   public func createList(l : LogLists) : Nat {
     let newlistIndex = l.listsAmount;
     if (65536 * Region.size(l.indexTable) < (Nat64.fromNat(newlistIndex) + 1) * 24) {
-      if (Region.grow(l.indexTable, 1) == 0xFFFF_FFFF_FFFF_FFFF) {
-        Prim.trap("Out of memory");
-      };
+      assert Region.grow(l.indexTable, 1) != 0xFFFF_FFFF_FFFF_FFFF;
     };
     l.listsAmount += 1;
     newlistIndex;
+  };
+
+  class List(l : LogLists, listIndex : Nat) {
+    let r : Region = l.indexTable;
+    let offset : Nat64 = Nat64.fromNat(3 * 8 * listIndex);
+
+    public func head() : Nat64 = Region.loadNat64(r, offset + 8);
+    public func tail() : Nat64 = Region.loadNat64(r, offset + 16);
+    public func length() : Nat = Nat64.toNat(Region.loadNat64(r, offset));
+
+    public func setHead(v : Nat64) = Region.storeNat64(r, offset + 8, v);
+    public func setTail(v : Nat64) = Region.storeNat64(r, offset + 16, v);
+
+    public func incLength() {
+      Region.loadNat64(r, offset)
+      |> Region.storeNat64(r, offset, _ + 1);
+    };
   };
 
   public func append(l : LogLists, listIndex : Nat, data : Blob) {
     if (listIndex >= l.listsAmount) {
       Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
-    let lastItemPtr = loadLastRecordPtr_(l, listIndex);
-    let newItemPtr = appendRecord_(l, { nextPtr = 0; prevPtr = lastItemPtr; data });
-    if (lastItemPtr > 0) {
-      storeNextPtr_(l, lastItemPtr, newItemPtr);
-    } else {
-      storeFirstRecordPtr_(l, listIndex, newItemPtr);
+    let list = List(l, listIndex);
+    let oldTail = list.tail();
+    let newItem = addRecord_(l, { nextPtr = 0; prevPtr = oldTail; data });
+    list.setTail(newItem);
+    switch (oldTail) {
+      case (0) list.setHead(newItem);
+      case (_) storeNextPtr_(l, oldTail, newItem);
     };
-    storeLastRecordPtr_(l, listIndex, newItemPtr);
-    storeListLength_(l, listIndex, loadListLength_(l, listIndex) + 1);
+    list.incLength();
     l.totalRecords += 1;
   };
 
@@ -93,15 +108,15 @@ module {
     if (listIndex >= l.listsAmount) {
       Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
-    let firstItemPtr = loadFirstRecordPtr_(l, listIndex);
-    let newItemPtr = appendRecord_(l, { nextPtr = firstItemPtr; prevPtr = 0; data });
-    if (firstItemPtr > 0) {
-      storePrevPtr_(l, firstItemPtr, newItemPtr);
-    } else {
-      storeLastRecordPtr_(l, listIndex, newItemPtr);
+    let list = List(l, listIndex);
+    let oldHead = list.head();
+    let newItem = addRecord_(l, { nextPtr = oldHead; prevPtr = 0; data });
+    list.setHead(newItem);
+    switch (oldHead) {
+      case (0) list.setTail(newItem);
+      case (_) storePrevPtr_(l, oldHead, newItem);
     };
-    storeFirstRecordPtr_(l, listIndex, newItemPtr);
-    storeListLength_(l, listIndex, loadListLength_(l, listIndex) + 1);
+    list.incLength();
     l.totalRecords += 1;
   };
 
@@ -109,11 +124,11 @@ module {
     if (listIndex >= l.listsAmount) {
       Prim.trap("Cannot retrieve values of list #" # debug_show listIndex # ". List was not created");
     };
-    var ptr = loadFirstRecordPtr_(l, listIndex);
+    var ptr = List(l, listIndex).head();
     {
       next = func() : ?Blob {
         if (ptr == 0) return null;
-        let { nextPtr; data } = loadRecord_(l, ptr);
+        let { nextPtr; data } = loadDataRecord_(l.data, ptr);
         ptr := nextPtr;
         ?data;
       };
@@ -124,11 +139,11 @@ module {
     if (listIndex >= l.listsAmount) {
       Prim.trap("Cannot retrieve valuesRev of list #" # debug_show listIndex # ". List was not created");
     };
-    var ptr = loadLastRecordPtr_(l, listIndex);
+    var ptr = List(l, listIndex).tail();
     {
       next = func() : ?Blob {
         if (ptr == 0) return null;
-        let { prevPtr; data } = loadRecord_(l, ptr);
+        let { prevPtr; data } = loadDataRecord_(l.data, ptr);
         ptr := prevPtr;
         ?data;
       };
@@ -149,38 +164,31 @@ module {
   };
 
   // ======================== INTERNAL PRIVATE FUNCTIONALITY ========================
-  private func loadListLength_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8);
-  private func storeListLength_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, Nat64.fromNat(listIndex) * 3 * 8, v);
-
-  private func loadFirstRecordPtr_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8);
-  private func storeFirstRecordPtr_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 1) * 8, v);
-
-  private func loadLastRecordPtr_(l : LogLists, listIndex : Nat) : Nat64 = Region.loadNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 2) * 8);
-  private func storeLastRecordPtr_(l : LogLists, listIndex : Nat, v : Nat64) = Region.storeNat64(l.indexTable, (Nat64.fromNat(listIndex) * 3 + 2) * 8, v);
-
-  private func loadRecord_(l : LogLists, pointer : Nat64) : Record {
-    let prevPtr = Region.loadNat64(l.data, pointer);
-    let nextPtr = Region.loadNat64(l.data, pointer + 8);
-    let size = Region.loadNat16(l.data, pointer + 16);
-    let data = Region.loadBlob(l.data, pointer + 18, Nat16.toNat(size));
+  private func loadDataRecord_(r : Region, offset : Nat64) : Record {
+    let prevPtr = Region.loadNat64(r, offset);
+    let nextPtr = Region.loadNat64(r, offset + 8);
+    let size = Region.loadNat16(r, offset + 16);
+    let data = Region.loadBlob(r, offset + 18, Nat16.toNat(size));
     { data; prevPtr; nextPtr };
   };
 
-  private func appendRecord_(l : LogLists, record : Record) : Nat64 {
-    let recordSize = record.data.size() + 18;
-    let pointer = Nat64.fromNat(l.dataLength);
-    while (65536 * Region.size(l.data) < Nat64.fromNat(recordSize) + pointer) {
-      let oldSize = Region.grow(l.data, 1);
-      if (oldSize == 0xFFFF_FFFF_FFFF_FFFF) {
-        Prim.trap("Out of memory");
-      };
+  private func storeDataRecord_(r : Region, offset : Nat64, v : Record) {
+    Region.storeNat64(r, offset, v.prevPtr);
+    Region.storeNat64(r, offset + 8, v.nextPtr);
+    Region.storeNat16(r, offset + 16, Nat16.fromNat(v.data.size()));
+    Region.storeBlob(r, offset + 18, v.data);
+  };
+
+  private func addRecord_(l : LogLists, record : Record) : Nat64 {
+    let len : Nat = l.dataLength;
+    let newSize : Nat = record.data.size() + 18;
+    while (65536 * Nat64.toNat(Region.size(l.data)) < len + newSize) {
+      assert Region.grow(l.data, 1) != 0xFFFF_FFFF_FFFF_FFFF;
     };
-    Region.storeNat64(l.data, pointer, record.prevPtr);
-    Region.storeNat64(l.data, pointer + 8, record.nextPtr);
-    Region.storeNat16(l.data, pointer + 16, Nat16.fromNat(record.data.size()));
-    Region.storeBlob(l.data, pointer + 18, record.data);
-    l.dataLength += recordSize;
-    pointer;
+    let offset = Nat64.fromNat(len);
+    storeDataRecord_(l.data, offset, record);
+    l.dataLength += newSize;
+    offset;
   };
 
   private func storePrevPtr_(l : LogLists, recordPointer : Nat64, prevPtr : Nat64) = Region.storeNat64(l.data, recordPointer, prevPtr);

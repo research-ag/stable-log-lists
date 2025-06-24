@@ -1,5 +1,6 @@
 // @testmode wasi
 
+import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
@@ -107,12 +108,12 @@ do {
   let listIndex = LogLists.createList(lists);
 
   let data1 = textToBlob("test data 1");
-  LogLists.append(lists, listIndex, data1);
+  LogLists.prepend(lists, listIndex, data1);
   assert LogLists.size(lists, listIndex) == 1;
   assert lists.totalRecords == 1;
 
   let data2 = textToBlob("test data 2");
-  LogLists.append(lists, listIndex, data2);
+  LogLists.prepend(lists, listIndex, data2);
   assert LogLists.size(lists, listIndex) == 2;
   assert lists.totalRecords == 2;
 
@@ -123,8 +124,8 @@ do {
 
   let values = LogLists.values(lists, listIndex);
   assert values.next() == ?data3;
-  assert values.next() == ?data1;
   assert values.next() == ?data2;
+  assert values.next() == ?data1;
   assert values.next() == null;
 };
 
@@ -225,6 +226,118 @@ do {
   assert stats.bytesUsed > 0;
   assert stats.pages.indexTable > 0;
   assert stats.pages.data > 0;
+};
+
+// Test empty list behavior for values and valuesRev
+do {
+  Prim.debugPrint("LogLists :: should handle empty lists correctly");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
+
+  // Test values on empty list
+  let values = LogLists.values(lists, listIndex);
+  assert values.next() == null;
+
+  // Test valuesRev on empty list
+  let valuesRev = LogLists.valuesRev(lists, listIndex);
+  assert valuesRev.next() == null;
+};
+
+// Test mixed operations (append then prepend, prepend then append)
+do {
+  Prim.debugPrint("LogLists :: should handle mixed append and prepend operations");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
+
+  // Append first, then prepend
+  let data1 = textToBlob("first appended");
+  LogLists.append(lists, listIndex, data1);
+
+  let data2 = textToBlob("then prepended");
+  LogLists.prepend(lists, listIndex, data2);
+
+  // Check order
+  let values1 = LogLists.values(lists, listIndex);
+  assert values1.next() == ?data2;
+  assert values1.next() == ?data1;
+  assert values1.next() == null;
+
+  // Create a new list for prepend-then-append test
+  let listIndex2 = LogLists.createList(lists);
+
+  // Prepend first, then append
+  let data3 = textToBlob("first prepended");
+  LogLists.prepend(lists, listIndex2, data3);
+
+  let data4 = textToBlob("then appended");
+  LogLists.append(lists, listIndex2, data4);
+
+  // Check order
+  let values2 = LogLists.values(lists, listIndex2);
+  assert values2.next() == ?data3;
+  assert values2.next() == ?data4;
+  assert values2.next() == null;
+};
+
+// Test with different data sizes
+do {
+  Prim.debugPrint("LogLists :: should handle different data sizes");
+  let lists = LogLists.new();
+  let listIndex = LogLists.createList(lists);
+
+  // Empty blob
+  let emptyData = textToBlob("");
+  LogLists.append(lists, listIndex, emptyData);
+
+  // Small blob
+  let smallData = textToBlob("small");
+  LogLists.append(lists, listIndex, smallData);
+
+  // Large blob (1KB of data)
+  var largeText = "";
+  for (i in Iter.range(0, 99)) {
+    largeText := largeText # "0123456789";
+  };
+  let largeData = textToBlob(largeText);
+  LogLists.append(lists, listIndex, largeData);
+
+  // Verify all data is retrieved correctly
+  let values = LogLists.values(lists, listIndex);
+  assert values.next() == ?emptyData;
+  assert values.next() == ?smallData;
+  assert values.next() == ?largeData;
+  assert values.next() == null;
+};
+
+// Test creating many lists
+do {
+  Prim.debugPrint("LogLists :: should handle creating many lists");
+  let lists = LogLists.new();
+
+  // Create 10 lists
+  let listIndices = Array.init<Nat>(10, 0);
+  for (i in Iter.range(0, 9)) {
+    listIndices[i] := LogLists.createList(lists);
+    assert listIndices[i] == i;
+  };
+
+  // Add data to each list
+  for (i in Iter.range(0, 9)) {
+    let data = textToBlob("list " # Nat.toText(i) # " data");
+    LogLists.append(lists, i, data);
+    assert LogLists.size(lists, i) == 1;
+  };
+
+  // Verify data in each list
+  for (i in Iter.range(0, 9)) {
+    let values = LogLists.values(lists, i);
+    let expectedData = textToBlob("list " # Nat.toText(i) # " data");
+    assert values.next() == ?expectedData;
+    assert values.next() == null;
+  };
+
+  assert lists.listsAmount == 10;
+  assert lists.totalRecords == 10;
 };
 
 // Test with larger data sets
