@@ -93,12 +93,12 @@ module {
       Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
     let list = List(l, listIndex);
-    let old_tail = list.tail();
-    let new_item = addRecord_(l, { nextPtr = 0; prevPtr = old_tail; data });
-    list.setTail(new_item);
-    switch (old_tail) {
-      case (0) list.setHead(new_item);
-      case (_) storeNextPtr_(l, old_tail, new_item);
+    let oldTail = list.tail();
+    let newItem = addRecord_(l, { nextPtr = 0; prevPtr = oldTail; data });
+    list.setTail(newItem);
+    switch (oldTail) {
+      case (0) list.setHead(newItem);
+      case (_) storeNextPtr_(l, oldTail, newItem);
     };
     list.incLength();
     l.totalRecords += 1;
@@ -109,12 +109,12 @@ module {
       Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
     let list = List(l, listIndex);
-    let old_head = list.head();
-    let new_item = addRecord_(l, { nextPtr = old_head; prevPtr = 0; data });
-    list.setHead(new_item);
-    switch (old_head) {
-      case (0) list.setTail(new_item);
-      case (_) storePrevPtr_(l, old_head, new_item);
+    let oldHead = list.head();
+    let newItem = addRecord_(l, { nextPtr = oldHead; prevPtr = 0; data });
+    list.setHead(newItem);
+    switch (oldHead) {
+      case (0) list.setTail(newItem);
+      case (_) storePrevPtr_(l, oldHead, newItem);
     };
     list.incLength();
     l.totalRecords += 1;
@@ -181,13 +181,13 @@ module {
 
   private func addRecord_(l : LogLists, record : Record) : Nat64 {
     let len : Nat = l.dataLength;
-    let new_size : Nat = record.data.size() + 18;
-    while (65536 * Nat64.toNat(Region.size(l.data)) < len + new_size) {
+    let newSize : Nat = record.data.size() + 18;
+    while (65536 * Nat64.toNat(Region.size(l.data)) < len + newSize) {
       assert Region.grow(l.data, 1) != 0xFFFF_FFFF_FFFF_FFFF;
     };
     let offset = Nat64.fromNat(len);
     storeDataRecord_(l.data, offset, record);
-    l.dataLength += new_size;
+    l.dataLength += newSize;
     offset;
   };
 
