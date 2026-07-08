@@ -1,23 +1,20 @@
 // @testmode wasi
 
-import Array "mo:base/Array";
-import Blob "mo:base/Blob";
-import Iter "mo:base/Iter";
-import Nat "mo:base/Nat";
-import Prim "mo:prim";
-import Text "mo:base/Text";
+import Array "mo:core/Array";
+import Blob "mo:core/Blob";
+import Debug "mo:core/Debug";
+import Iter "mo:core/Iter";
+import Nat "mo:core/Nat";
+import Runtime "mo:core/Runtime";
+import Text "mo:core/Text";
+import VarArray "mo:core/VarArray";
 
 import LogLists "../src";
 
-// Helper function to convert Text to Blob
-func textToBlob(t : Text) : Blob {
-  Text.encodeUtf8(t);
-};
-
 // Helper function to convert Blob to Text
 func blobToText(b : ?Blob) : Text {
-  let ?d = b else Prim.trap("Empty blob received");
-  let ?t = Text.decodeUtf8(d) else Prim.trap("Could not decode text");
+  let ?d = b else Runtime.trap("Empty blob received");
+  let ?t = d.decodeUtf8() else Runtime.trap("Could not decode text");
   t;
 };
 
@@ -25,7 +22,7 @@ func blobToText(b : ?Blob) : Text {
 
 // Test creating a new LogLists instance
 do {
-  Prim.debugPrint("LogLists :: should create a new instance");
+  Debug.print("LogLists :: should create a new instance");
   let lists = LogLists.new();
   assert lists.listsAmount == 0;
   assert lists.totalRecords == 0;
@@ -34,7 +31,7 @@ do {
 
 // Test allocating a list
 do {
-  Prim.debugPrint("LogLists :: should create a new list");
+  Debug.print("LogLists :: should create a new list");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
   assert listIndex == 0;
@@ -44,16 +41,16 @@ do {
 
 // Test appending data to a list
 do {
-  Prim.debugPrint("LogLists :: should append data to a list");
+  Debug.print("LogLists :: should append data to a list");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
-  let data1 = textToBlob("test data 1");
+  let data1 : Blob = "test data 1";
   LogLists.append(lists, listIndex, data1);
   assert LogLists.size(lists, listIndex) == 1;
   assert lists.totalRecords == 1;
 
-  let data2 = textToBlob("test data 2");
+  let data2 : Blob = "test data 2";
   LogLists.append(lists, listIndex, data2);
   assert LogLists.size(lists, listIndex) == 2;
   assert lists.totalRecords == 2;
@@ -61,13 +58,13 @@ do {
 
 // Test retrieving values from a list
 do {
-  Prim.debugPrint("LogLists :: should retrieve values from a list in order");
+  Debug.print("LogLists :: should retrieve values from a list in order");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
-  let data1 = textToBlob("test data 1");
-  let data2 = textToBlob("test data 2");
-  let data3 = textToBlob("test data 3");
+  let data1 : Blob = "test data 1";
+  let data2 : Blob = "test data 2";
+  let data3 : Blob = "test data 3";
 
   LogLists.append(lists, listIndex, data1);
   LogLists.append(lists, listIndex, data2);
@@ -82,13 +79,13 @@ do {
 
 // Test retrieving values in reverse order
 do {
-  Prim.debugPrint("LogLists :: should retrieve values from a list in reverse order");
+  Debug.print("LogLists :: should retrieve values from a list in reverse order");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
-  let data1 = textToBlob("test data 1");
-  let data2 = textToBlob("test data 2");
-  let data3 = textToBlob("test data 3");
+  let data1 : Blob = "test data 1";
+  let data2 : Blob = "test data 2";
+  let data3 : Blob = "test data 3";
 
   LogLists.append(lists, listIndex, data1);
   LogLists.append(lists, listIndex, data2);
@@ -103,21 +100,21 @@ do {
 
 // Test prepending data to a list
 do {
-  Prim.debugPrint("LogLists :: should prepend data to a list");
+  Debug.print("LogLists :: should prepend data to a list");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
-  let data1 = textToBlob("test data 1");
+  let data1 : Blob = "test data 1";
   LogLists.prepend(lists, listIndex, data1);
   assert LogLists.size(lists, listIndex) == 1;
   assert lists.totalRecords == 1;
 
-  let data2 = textToBlob("test data 2");
+  let data2 : Blob = "test data 2";
   LogLists.prepend(lists, listIndex, data2);
   assert LogLists.size(lists, listIndex) == 2;
   assert lists.totalRecords == 2;
 
-  let data3 = textToBlob("test data 3");
+  let data3 : Blob = "test data 3";
   LogLists.prepend(lists, listIndex, data3);
   assert LogLists.size(lists, listIndex) == 3;
   assert lists.totalRecords == 3;
@@ -131,11 +128,11 @@ do {
 
 // Test single-item lists
 do {
-  Prim.debugPrint("LogLists :: append should initialize list");
+  Debug.print("LogLists :: append should initialize list");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
-  let data1 = textToBlob("test data");
+  let data1 : Blob = "test data";
   LogLists.append(lists, listIndex, data1);
 
   let values = LogLists.values(lists, listIndex);
@@ -148,11 +145,11 @@ do {
 };
 
 do {
-  Prim.debugPrint("LogLists :: prepend should initialize list");
+  Debug.print("LogLists :: prepend should initialize list");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
-  let data1 = textToBlob("test data");
+  let data1 : Blob = "test data";
   LogLists.prepend(lists, listIndex, data1);
 
   let values = LogLists.values(lists, listIndex);
@@ -166,7 +163,7 @@ do {
 
 // Test multiple lists
 do {
-  Prim.debugPrint("LogLists :: should handle multiple lists");
+  Debug.print("LogLists :: should handle multiple lists");
   let lists = LogLists.new();
 
   let listIndex1 = LogLists.createList(lists);
@@ -175,8 +172,8 @@ do {
   assert listIndex1 == 0;
   assert listIndex2 == 1;
 
-  let data1 = textToBlob("list 1 data");
-  let data2 = textToBlob("list 2 data");
+  let data1 : Blob = "list 1 data";
+  let data2 : Blob = "list 2 data";
 
   LogLists.append(lists, listIndex1, data1);
   LogLists.append(lists, listIndex2, data2);
@@ -197,7 +194,7 @@ do {
 
 // Test totalSize function
 do {
-  Prim.debugPrint("LogLists :: should report correct totalSize");
+  Debug.print("LogLists :: should report correct totalSize");
   let lists = LogLists.new();
 
   assert LogLists.totalSize(lists) == 0;
@@ -205,20 +202,20 @@ do {
   let listIndex1 = LogLists.createList(lists);
   let listIndex2 = LogLists.createList(lists);
 
-  LogLists.append(lists, listIndex1, textToBlob("data 1"));
-  LogLists.append(lists, listIndex1, textToBlob("data 2"));
-  LogLists.append(lists, listIndex2, textToBlob("data 3"));
+  LogLists.append(lists, listIndex1, "data 1");
+  LogLists.append(lists, listIndex1, "data 2");
+  LogLists.append(lists, listIndex2, "data 3");
 
   assert LogLists.totalSize(lists) == 3;
 };
 
 // Test memory statistics
 do {
-  Prim.debugPrint("LogLists :: should report memory statistics");
+  Debug.print("LogLists :: should report memory statistics");
   let lists = LogLists.new();
 
   let listIndex = LogLists.createList(lists);
-  LogLists.append(lists, listIndex, textToBlob("test data"));
+  LogLists.append(lists, listIndex, "test data");
 
   let stats = LogLists.memoryStats(lists);
 
@@ -230,7 +227,7 @@ do {
 
 // Test empty list behavior for values and valuesRev
 do {
-  Prim.debugPrint("LogLists :: should handle empty lists correctly");
+  Debug.print("LogLists :: should handle empty lists correctly");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
@@ -245,15 +242,15 @@ do {
 
 // Test mixed operations (append then prepend, prepend then append)
 do {
-  Prim.debugPrint("LogLists :: should handle mixed append and prepend operations");
+  Debug.print("LogLists :: should handle mixed append and prepend operations");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
   // Append first, then prepend
-  let data1 = textToBlob("first appended");
+  let data1 : Blob = "first appended";
   LogLists.append(lists, listIndex, data1);
 
-  let data2 = textToBlob("then prepended");
+  let data2 : Blob = "then prepended";
   LogLists.prepend(lists, listIndex, data2);
 
   // Check order
@@ -266,10 +263,10 @@ do {
   let listIndex2 = LogLists.createList(lists);
 
   // Prepend first, then append
-  let data3 = textToBlob("first prepended");
+  let data3 : Blob = "first prepended";
   LogLists.prepend(lists, listIndex2, data3);
 
-  let data4 = textToBlob("then appended");
+  let data4 : Blob = "then appended";
   LogLists.append(lists, listIndex2, data4);
 
   // Check order
@@ -281,24 +278,24 @@ do {
 
 // Test with different data sizes
 do {
-  Prim.debugPrint("LogLists :: should handle different data sizes");
+  Debug.print("LogLists :: should handle different data sizes");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
   // Empty blob
-  let emptyData = textToBlob("");
+  let emptyData : Blob = "";
   LogLists.append(lists, listIndex, emptyData);
 
   // Small blob
-  let smallData = textToBlob("small");
+  let smallData : Blob = "small";
   LogLists.append(lists, listIndex, smallData);
 
   // Large blob (1KB of data)
   var largeText = "";
-  for (i in Iter.range(0, 99)) {
+  for (i in Nat.range(0, 100)) {
     largeText := largeText # "0123456789";
   };
-  let largeData = textToBlob(largeText);
+  let largeData = largeText.encodeUtf8();
   LogLists.append(lists, listIndex, largeData);
 
   // Verify all data is retrieved correctly
@@ -311,27 +308,27 @@ do {
 
 // Test creating many lists
 do {
-  Prim.debugPrint("LogLists :: should handle creating many lists");
+  Debug.print("LogLists :: should handle creating many lists");
   let lists = LogLists.new();
 
   // Create 10 lists
-  let listIndices = Array.init<Nat>(10, 0);
-  for (i in Iter.range(0, 9)) {
+  let listIndices = VarArray.repeat<Nat>(0, 10);
+  for (i in Nat.range(0, 10)) {
     listIndices[i] := LogLists.createList(lists);
     assert listIndices[i] == i;
   };
 
   // Add data to each list
-  for (i in Iter.range(0, 9)) {
-    let data = textToBlob("list " # Nat.toText(i) # " data");
+  for (i in Nat.range(0, 10)) {
+    let data = ("list " # i.toText() # " data").encodeUtf8();
     LogLists.append(lists, i, data);
     assert LogLists.size(lists, i) == 1;
   };
 
   // Verify data in each list
-  for (i in Iter.range(0, 9)) {
+  for (i in Nat.range(0, 10)) {
     let values = LogLists.values(lists, i);
-    let expectedData = textToBlob("list " # Nat.toText(i) # " data");
+    let expectedData = ("list " # i.toText() # " data").encodeUtf8();
     assert values.next() == ?expectedData;
     assert values.next() == null;
   };
@@ -342,13 +339,13 @@ do {
 
 // Test with larger data sets
 do {
-  Prim.debugPrint("LogLists :: should handle larger data sets");
+  Debug.print("LogLists :: should handle larger data sets");
   let lists = LogLists.new();
   let listIndex = LogLists.createList(lists);
 
   // Add 100 items
-  for (i in Iter.range(0, 99)) {
-    let data = textToBlob("data item #" # Nat.toText(i));
+  for (i in Nat.range(0, 100)) {
+    let data = ("data item #" # i.toText()).encodeUtf8();
     LogLists.append(lists, listIndex, data);
   };
 

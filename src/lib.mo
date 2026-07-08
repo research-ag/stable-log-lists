@@ -31,12 +31,13 @@
 /// Main author: Andy Gura
 /// Contributors: Timo Hanke
 
-import Blob "mo:base/Blob";
-import Iter "mo:base/Iter";
-import Nat16 "mo:base/Nat16";
-import Nat64 "mo:base/Nat64";
-import Prim "mo:prim";
-import Region "mo:base/Region";
+import Blob "mo:core/Blob";
+import { type Iter } "mo:core/Types";
+import Nat "mo:core/Nat";
+import Nat16 "mo:core/Nat16";
+import Nat64 "mo:core/Nat64";
+import Region "mo:core/Region";
+import Runtime "mo:core/Runtime";
 
 module {
 
@@ -64,8 +65,8 @@ module {
 
   public func createList(l : LogLists) : Nat {
     let newlistIndex = l.listsAmount;
-    if (65536 * Region.size(l.indexTable) < (Nat64.fromNat(newlistIndex) + 1) * 24) {
-      assert Region.grow(l.indexTable, 1) != 0xFFFF_FFFF_FFFF_FFFF;
+    if (l.indexTable.size() * 65536 < (Nat64.fromNat(newlistIndex) + 1) * 24) {
+      assert l.indexTable.grow(1) != 0xFFFF_FFFF_FFFF_FFFF;
     };
     l.listsAmount += 1;
     newlistIndex;
@@ -75,22 +76,22 @@ module {
     let r : Region = l.indexTable;
     let offset : Nat64 = Nat64.fromNat(3 * 8 * listIndex);
 
-    public func head() : Nat64 = Region.loadNat64(r, offset + 8);
-    public func tail() : Nat64 = Region.loadNat64(r, offset + 16);
-    public func length() : Nat = Nat64.toNat(Region.loadNat64(r, offset));
+    public func head() : Nat64 = r.loadNat64(offset + 8);
+    public func tail() : Nat64 = r.loadNat64(offset + 16);
+    public func length() : Nat = r.loadNat64(offset).toNat();
 
-    public func setHead(v : Nat64) = Region.storeNat64(r, offset + 8, v);
-    public func setTail(v : Nat64) = Region.storeNat64(r, offset + 16, v);
+    public func setHead(v : Nat64) = r.storeNat64(offset + 8, v);
+    public func setTail(v : Nat64) = r.storeNat64(offset + 16, v);
 
     public func incLength() {
-      Region.loadNat64(r, offset)
-      |> Region.storeNat64(r, offset, _ + 1);
+      r.loadNat64(offset)
+      |> r.storeNat64(offset, _ + 1);
     };
   };
 
   public func append(l : LogLists, listIndex : Nat, data : Blob) {
     if (listIndex >= l.listsAmount) {
-      Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
+      Runtime.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
     let list = List(l, listIndex);
     let oldTail = list.tail();
@@ -106,7 +107,7 @@ module {
 
   public func prepend(l : LogLists, listIndex : Nat, data : Blob) {
     if (listIndex >= l.listsAmount) {
-      Prim.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
+      Runtime.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
     let list = List(l, listIndex);
     let oldHead = list.head();
@@ -120,9 +121,9 @@ module {
     l.totalRecords += 1;
   };
 
-  public func values(l : LogLists, listIndex : Nat) : Iter.Iter<Blob> {
+  public func values(l : LogLists, listIndex : Nat) : Iter<Blob> {
     if (listIndex >= l.listsAmount) {
-      Prim.trap("Cannot retrieve values of list #" # debug_show listIndex # ". List was not created");
+      Runtime.trap("Cannot retrieve values of list #" # debug_show listIndex # ". List was not created");
     };
     var ptr = List(l, listIndex).head();
     {
@@ -130,14 +131,14 @@ module {
         if (ptr == 0) return null;
         let { nextPtr; data } = loadDataRecord_(l.data, ptr);
         ptr := nextPtr;
-        ?data;
+        return ?data;
       };
     };
   };
 
-  public func valuesRev(l : LogLists, listIndex : Nat) : Iter.Iter<Blob> {
+  public func valuesRev(l : LogLists, listIndex : Nat) : Iter<Blob> {
     if (listIndex >= l.listsAmount) {
-      Prim.trap("Cannot retrieve valuesRev of list #" # debug_show listIndex # ". List was not created");
+      Runtime.trap("Cannot retrieve valuesRev of list #" # debug_show listIndex # ". List was not created");
     };
     var ptr = List(l, listIndex).tail();
     {
@@ -145,7 +146,7 @@ module {
         if (ptr == 0) return null;
         let { prevPtr; data } = loadDataRecord_(l.data, ptr);
         ptr := prevPtr;
-        ?data;
+        return ?data;
       };
     };
   };
@@ -156,8 +157,8 @@ module {
     totalRecords : Nat;
   } = {
     pages = {
-      indexTable = Region.size(l.indexTable) |> Nat64.toNat(_);
-      data = Region.size(l.data) |> Nat64.toNat(_);
+      indexTable = l.indexTable.size().toNat();
+      data = l.data.size().toNat();
     };
     bytesUsed = l.dataLength;
     totalRecords = l.totalRecords;
@@ -165,25 +166,25 @@ module {
 
   // ======================== INTERNAL PRIVATE FUNCTIONALITY ========================
   private func loadDataRecord_(r : Region, offset : Nat64) : Record {
-    let prevPtr = Region.loadNat64(r, offset);
-    let nextPtr = Region.loadNat64(r, offset + 8);
-    let size = Region.loadNat16(r, offset + 16);
-    let data = Region.loadBlob(r, offset + 18, Nat16.toNat(size));
+    let prevPtr = r.loadNat64(offset);
+    let nextPtr = r.loadNat64(offset + 8);
+    let size = r.loadNat16(offset + 16);
+    let data = r.loadBlob(offset + 18, size.toNat());
     { data; prevPtr; nextPtr };
   };
 
   private func storeDataRecord_(r : Region, offset : Nat64, v : Record) {
-    Region.storeNat64(r, offset, v.prevPtr);
-    Region.storeNat64(r, offset + 8, v.nextPtr);
-    Region.storeNat16(r, offset + 16, Nat16.fromNat(v.data.size()));
-    Region.storeBlob(r, offset + 18, v.data);
+    r.storeNat64(offset, v.prevPtr);
+    r.storeNat64(offset + 8, v.nextPtr);
+    r.storeNat16(offset + 16, v.data.size().toNat16());
+    r.storeBlob(offset + 18, v.data);
   };
 
   private func addRecord_(l : LogLists, record : Record) : Nat64 {
     let len : Nat = l.dataLength;
     let newSize : Nat = record.data.size() + 18;
-    while (65536 * Nat64.toNat(Region.size(l.data)) < len + newSize) {
-      assert Region.grow(l.data, 1) != 0xFFFF_FFFF_FFFF_FFFF;
+    while (l.data.size().toNat() * 65536 < len + newSize) {
+      assert l.data.grow(1) != 0xFFFF_FFFF_FFFF_FFFF;
     };
     let offset = Nat64.fromNat(len);
     storeDataRecord_(l.data, offset, record);
@@ -191,8 +192,8 @@ module {
     offset;
   };
 
-  private func storePrevPtr_(l : LogLists, recordPointer : Nat64, prevPtr : Nat64) = Region.storeNat64(l.data, recordPointer, prevPtr);
-  private func storeNextPtr_(l : LogLists, recordPointer : Nat64, nextPtr : Nat64) = Region.storeNat64(l.data, recordPointer + 8, nextPtr);
+  private func storePrevPtr_(l : LogLists, recordPointer : Nat64, prevPtr : Nat64) = l.data.storeNat64(recordPointer, prevPtr);
+  private func storeNextPtr_(l : LogLists, recordPointer : Nat64, nextPtr : Nat64) = l.data.storeNat64(recordPointer + 8, nextPtr);
   // ======================== INTERNAL PRIVATE FUNCTIONALITY ========================
 
 };
