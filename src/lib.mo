@@ -59,7 +59,12 @@ module {
     var totalRecords = 0;
   };
 
-  public func size(l : LogLists, listIndex : Nat) : Nat = List(l, listIndex).length();
+  public func size(l : LogLists, listIndex : Nat) : Nat {
+    if (listIndex >= l.listsAmount) {
+      Runtime.trap("Cannot retrieve size of list #" # debug_show listIndex # ". List was not created");
+    };
+    List(l, listIndex).length();
+  };
 
   public func totalSize(l : LogLists) : Nat = l.totalRecords;
 
@@ -93,6 +98,9 @@ module {
     if (listIndex >= l.listsAmount) {
       Runtime.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
     };
+    if (data.size() > 65535) {
+      Runtime.trap("Cannot append record: data size exceeds 65535 bytes");
+    };
     let list = List(l, listIndex);
     let oldTail = list.tail();
     let newItem = addRecord_(l, { nextPtr = 0; prevPtr = oldTail; data });
@@ -107,7 +115,10 @@ module {
 
   public func prepend(l : LogLists, listIndex : Nat, data : Blob) {
     if (listIndex >= l.listsAmount) {
-      Runtime.trap("Cannot append record to list #" # debug_show listIndex # ". List was not created");
+      Runtime.trap("Cannot prepend record to list #" # debug_show listIndex # ". List was not created");
+    };
+    if (data.size() > 65535) {
+      Runtime.trap("Cannot prepend record: data size exceeds 65535 bytes");
     };
     let list = List(l, listIndex);
     let oldHead = list.head();

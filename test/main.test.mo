@@ -139,7 +139,7 @@ do {
   assert values.next() == ?data1;
   assert values.next() == null;
 
-  let valuesRev = LogLists.values(lists, listIndex);
+  let valuesRev = LogLists.valuesRev(lists, listIndex);
   assert valuesRev.next() == ?data1;
   assert valuesRev.next() == null;
 };
@@ -156,7 +156,7 @@ do {
   assert values.next() == ?data1;
   assert values.next() == null;
 
-  let valuesRev = LogLists.values(lists, listIndex);
+  let valuesRev = LogLists.valuesRev(lists, listIndex);
   assert valuesRev.next() == ?data1;
   assert valuesRev.next() == null;
 };
