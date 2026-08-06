@@ -70,7 +70,7 @@ module {
 
   public func createList(l : LogLists) : Nat {
     let newlistIndex = l.listsAmount;
-    if (l.indexTable.size() * 65536 < (Nat64.fromNat(newlistIndex) + 1) * 24) {
+    if (l.indexTable.size() * 65536 < ((newlistIndex).toNat64() + 1) * 24) {
       assert l.indexTable.grow(1) != 0xFFFF_FFFF_FFFF_FFFF;
     };
     l.listsAmount += 1;
@@ -79,7 +79,7 @@ module {
 
   class List(l : LogLists, listIndex : Nat) {
     let r : Region = l.indexTable;
-    let offset : Nat64 = Nat64.fromNat(3 * 8 * listIndex);
+    let offset : Nat64 = (3 * 8 * listIndex).toNat64();
 
     public func head() : Nat64 = r.loadNat64(offset + 8);
     public func tail() : Nat64 = r.loadNat64(offset + 16);
@@ -197,7 +197,7 @@ module {
     while (l.data.size().toNat() * 65536 < len + newSize) {
       assert l.data.grow(1) != 0xFFFF_FFFF_FFFF_FFFF;
     };
-    let offset = Nat64.fromNat(len);
+    let offset = len.toNat64();
     storeDataRecord_(l.data, offset, record);
     l.dataLength += newSize;
     offset;
